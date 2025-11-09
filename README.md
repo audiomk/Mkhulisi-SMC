@@ -49,6 +49,7 @@ EQUAL_GROUP                     = 'EQH/EQL'
 GAPS_GROUP                      = 'Fair Value Gaps'
 LEVELS_GROUP                    = 'Highs & Lows MTF'
 ZONES_GROUP                     = 'Premium & Discount Zones'
+MA_GROUP                        = 'Moving Averages'
 
 modeTooltip                     = 'Allows to display historical Structure or only the recent ones'
 styleTooltip                    = 'Indicator color theme'
@@ -131,6 +132,20 @@ premiumZoneColorInput           = input.color(  RED,        'Premium Zone',     
 equilibriumZoneColorInput       = input.color(  GRAY,       'Equilibrium Zone',         group = ZONES_GROUP)
 discountZoneColorInput          = input.color(  GREEN,      'Discount Zone',            group = ZONES_GROUP)
 
+showMA1Input = input(false, 'Show MA 1', group = MA_GROUP, inline = 'ma1')
+ma1LengthInput = input.int(20, '', group = MA_GROUP, inline = 'ma1')
+ma1TypeInput = input.string('SMA', '', group = MA_GROUP, inline = 'ma1', options = ['SMA', 'EMA', 'WMA'])
+ma1ColorInput = input(BLUE, '', group = MA_GROUP, inline = 'ma1')
+
+showMA2Input = input(false, 'Show MA 2', group = MA_GROUP, inline = 'ma2')
+ma2LengthInput = input.int(50, '', group = MA_GROUP, inline = 'ma2')
+ma2TypeInput = input.string('SMA', '', group = MA_GROUP, inline = 'ma2', options = ['SMA', 'EMA', 'WMA'])
+ma2ColorInput = input(RED, '', group = MA_GROUP, inline = 'ma2')
+
+showMA3Input = input(false, 'Show MA 3', group = MA_GROUP, inline = 'ma3')
+ma3LengthInput = input.int(200, '', group = MA_GROUP, inline = 'ma3')
+ma3TypeInput = input.string('SMA', '', group = MA_GROUP, inline = 'ma3', options = ['SMA', 'EMA', 'WMA'])
+ma3ColorInput = input(GREEN, '', group = MA_GROUP, inline = 'ma3')
 //---------------------------------------------------------------------------------------------------------------------}
 //DATA STRUCTURES & VARIABLES
 //---------------------------------------------------------------------------------------------------------------------{
@@ -756,9 +771,27 @@ drawPremiumDiscountZones() =>
 
     drawZone(trailing.bottom, math.round(0.5*(trailing.barIndex + last_bar_index)), 0.95*trailing.bottom + 0.05*trailing.top, trailing.bottom, 'Discount', discountZoneColor, label.style_label_up)
 
+// @function        get moving average
+// @param type      moving average type
+// @param length    moving average length
+// @returns         float
+getMA(string type, int length) =>
+    float ma = na
+    if type == 'SMA'
+        ma := ta.sma(close, length)
+    else if type == 'EMA'
+        ma := ta.ema(close, length)
+    else if type == 'WMA'
+        ma := ta.wma(close, length)
+    ma
+
 //---------------------------------------------------------------------------------------------------------------------}
 //MUTABLE VARIABLES & EXECUTION
 //---------------------------------------------------------------------------------------------------------------------{
+ma1 = getMA(ma1TypeInput, ma1LengthInput)
+ma2 = getMA(ma2TypeInput, ma2LengthInput)
+ma3 = getMA(ma3TypeInput, ma3LengthInput)
+
 parsedOpen  = showTrendInput ? open : na
 candleColor = internalTrend.bias == BULLISH ? swingBullishColor : swingBearishColor
 plotcandle(parsedOpen,high,low,close,color = candleColor, wickcolor = candleColor, bordercolor = candleColor)
@@ -816,6 +849,10 @@ if barstate.islastconfirmedhistory or (barstate.isrealtime and newBar)
 
     if showMonthlyLevelsInput and not higherTimeframe('M')
         drawLevels('M',timeframe.ismonthly,monthlyLevelsStyleInput,monthlyLevelsColorInput)
+
+plot(showMA1Input ? ma1 : na, color = ma1ColorInput, title = 'MA 1')
+plot(showMA2Input ? ma2 : na, color = ma2ColorInput, title = 'MA 2')
+plot(showMA3Input ? ma3 : na, color = ma3ColorInput, title = 'MA 3')
 
 //---------------------------------------------------------------------------------------------------------------------}
 //ALERTS
