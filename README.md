@@ -944,39 +944,38 @@ if showFairValueGapsInput
     deleteFairValueGaps()
 
 // Fractal Structure Tracker
-if showFractalsInput
-    newFractalHigh = detectFractalHigh()
-    newFractalLow = detectFractalLow()
-    
-    prevFractalStructureBias := fractalStructureBias
-    fractalStructureBias := updateFractalStructure()
-    
-    drawFractalStructure()
+newFractalHigh = detectFractalHigh()
+newFractalLow = detectFractalLow()
 
-    // Plot fractal shapes and labels
-    plotshape(showBearishFractalsInput and newFractalHigh,
-              title='Fractal High', location=location.abovebar, style=shape.triangledown,
-              color=fractalBearishColorInput, size=size.small,
-              offset=-fractalLookbackInput)
+prevFractalStructureBias := fractalStructureBias
+fractalStructureBias := updateFractalStructure()
 
-    if showBearishFractalsInput and newFractalHigh and showFractalLabelsInput
-        fh = fractalHighs.get(0)
-        label.new(chart.point.new(fh.barTime, na, fh.price),
-                  'FH', xloc = xloc.bar_time, color = color(na),
-                  textcolor = fractalBearishColorInput,
-                  style = label.style_label_down, size = size.tiny)
+drawFractalStructure()
 
-    plotshape(showBullishFractalsInput and newFractalLow,
-              title='Fractal Low', location=location.belowbar, style=shape.triangleup,
-              color=fractalBullishColorInput, size=size.small,
-              offset=-fractalLookbackInput)
+// Plot fractal shapes and labels
+plotshape(showFractalsInput and showBearishFractalsInput and newFractalHigh,
+          title='Fractal High', location=location.abovebar, style=shape.triangledown,
+          color=fractalBearishColorInput, size=size.small,
+          offset=-fractalLookbackInput)
 
-    if showBullishFractalsInput and newFractalLow and showFractalLabelsInput
-        fl = fractalLows.get(0)
-        label.new(chart.point.new(fl.barTime, na, fl.price),
-                  'FL', xloc = xloc.bar_time, color = color(na),
-                  textcolor = fractalBullishColorInput,
-                  style = label.style_label_up, size = size.tiny)
+if showFractalsInput and showBearishFractalsInput and newFractalHigh and showFractalLabelsInput
+    fh = fractalHighs.get(0)
+    label.new(chart.point.new(fh.barTime, na, fh.price),
+              'FH', xloc = xloc.bar_time, color = color(na),
+              textcolor = fractalBearishColorInput,
+              style = label.style_label_down, size = size.tiny)
+
+plotshape(showFractalsInput and showBullishFractalsInput and newFractalLow,
+          title='Fractal Low', location=location.belowbar, style=shape.triangleup,
+          color=fractalBullishColorInput, size=size.small,
+          offset=-fractalLookbackInput)
+
+if showFractalsInput and showBullishFractalsInput and newFractalLow and showFractalLabelsInput
+    fl = fractalLows.get(0)
+    label.new(chart.point.new(fl.barTime, na, fl.price),
+              'FL', xloc = xloc.bar_time, color = color(na),
+              textcolor = fractalBullishColorInput,
+              style = label.style_label_up, size = size.tiny)
 
 // Background highlight for structure change
 structureChanged = prevFractalStructureBias != fractalStructureBias and fractalStructureBias != 0
