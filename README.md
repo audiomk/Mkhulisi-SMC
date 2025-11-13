@@ -1,6 +1,5 @@
-
-//@version=5
-strategy('Smart Money Concepts [Mkhulisi]', 'Mkhulisi - Smart Money Concepts', overlay = true, max_labels_count = 500, max_lines_count = 500, max_boxes_count = 500)
+//@version=6
+strategy('Smart Money Concepts [Mkhulisi]', 'Mk - SMC', overlay = true, max_labels_count = 500, max_lines_count = 500, max_boxes_count = 500)
 //---------------------------------------------------------------------------------------------------------------------}
 //CONSTANTS & STRINGS & INPUTS
 //---------------------------------------------------------------------------------------------------------------------{
@@ -49,6 +48,7 @@ EQUAL_GROUP                     = 'EQH/EQL'
 GAPS_GROUP                      = 'Fair Value Gaps'
 LEVELS_GROUP                    = 'Highs & Lows MTF'
 ZONES_GROUP                     = 'Premium & Discount Zones'
+MOVING_AVERAGES_GROUP           = 'Moving Averages'
 
 modeTooltip                     = 'Allows to display historical Structure or only the recent ones'
 styleTooltip                    = 'Indicator color theme'
@@ -130,6 +130,25 @@ showPremiumDiscountZonesInput   = input(        false,      'Premium/Discount Zo
 premiumZoneColorInput           = input.color(  RED,        'Premium Zone',             group = ZONES_GROUP)
 equilibriumZoneColorInput       = input.color(  GRAY,       'Equilibrium Zone',         group = ZONES_GROUP)
 discountZoneColorInput          = input.color(  GREEN,      'Discount Zone',            group = ZONES_GROUP)
+
+showMovingAveragesInput         = input(        true,       'Show Moving Averages',     group = MOVING_AVERAGES_GROUP)
+priceInput                      = input.source( close,      'Base Price',               group = MOVING_AVERAGES_GROUP)
+ema1Input                       = input.int(    50,         'EMA 1 Period',             group = MOVING_AVERAGES_GROUP, minval = 1)
+ema1ColorInput                  = input.color(  GREEN,      'EMA 1 Color',              group = MOVING_AVERAGES_GROUP)
+ema2Input                       = input.int(    100,        'EMA 2 Period',             group = MOVING_AVERAGES_GROUP, minval = 1)
+ema2ColorInput                  = input.color(  color.orange, 'EMA 2 Color',            group = MOVING_AVERAGES_GROUP)
+ema3Input                       = input.int(    200,        'EMA 3 Period',             group = MOVING_AVERAGES_GROUP, minval = 1)
+ema3ColorInput                  = input.color(  RED,        'EMA 3 Color',              group = MOVING_AVERAGES_GROUP)
+
+showFractalsInput               = input(        true,       'Show Fractal Structure',   group = FRACTAL_GROUP)
+showBullishFractalsInput        = input(        true,       'Show Bullish Fractals',    group = FRACTAL_GROUP, inline = 'bull_frac')
+fractalBullishColorInput        = input.color(  GREEN,      '',                         group = FRACTAL_GROUP, inline = 'bull_frac')
+showBearishFractalsInput        = input(        true,       'Show Bearish Fractals',    group = FRACTAL_GROUP, inline = 'bear_frac')
+fractalBearishColorInput        = input.color(  RED,        '',                         group = FRACTAL_GROUP, inline = 'bear_frac')
+fractalLookbackInput            = input.int(    1,          'Confirmation Bars',        group = FRACTAL_GROUP, minval = 1, maxval = 5, tooltip = 'Number of bars required to confirm a fractal')
+fractalLineWidthInput           = input.int(    1,          'Structure Line Width',     group = FRACTAL_GROUP, minval = 1, maxval = 5)
+showFractalLabelsInput          = input(        true,       'Show Fractal Labels',      group = FRACTAL_GROUP)
+highlightStructureChangeInput   = input(        false,      'Highlight Structure Change',group = FRACTAL_GROUP, tooltip = 'Add background color when structure changes')
 
 //---------------------------------------------------------------------------------------------------------------------}
 //DATA STRUCTURES & VARIABLES
@@ -233,6 +252,19 @@ type orderBlock
     int barTime    
     int bias
 
+// @type                            UDT representing a fractal point
+// @field price                     price level of fractal
+// @field barTime                   bar time
+// @field barIndex                  bar index
+// @field isBullish                 true for fractal low, false for fractal high
+// @field confirmed                 true when fractal is confirmed
+type fractalPoint
+    float price
+    int barTime
+    int barIndex
+    bool isBullish
+    bool confirmed = false
+
 // @variable                        current swing pivot high    
 var pivot swingHigh                 = pivot.new(na,na,false)
 // @variable                        current swing pivot low
@@ -275,6 +307,14 @@ var array<orderBlock> internalOrderBlocks   = array.new<orderBlock>()
 var array<box> swingOrderBlocksBoxes        = array.new<box>()
 // @variable                                storage for internal order blocks boxes
 var array<box> internalOrderBlocksBoxes     = array.new<box>()
+// @variable                        storage for fractal points
+var array<fractalPoint> fractalHighs        = array.new<fractalPoint>()
+// @variable                        storage for fractal points
+var array<fractalPoint> fractalLows         = array.new<fractalPoint>()
+// @variable                        current fractal structure bias
+var int fractalStructureBias                = 0
+// @variable                        previous fractal structure bias
+var int prevFractalStructureBias            = 0
 // @variable                        color for swing bullish structures
 var swingBullishColor               = styleInput == MONOCHROME ? MONO_BULLISH : swingBullColorInput
 // @variable                        color for swing bearish structures
@@ -756,9 +796,178 @@ drawPremiumDiscountZones() =>
 
     drawZone(trailing.bottom, math.round(0.5*(trailing.barIndex + last_bar_index)), 0.95*trailing.bottom + 0.05*trailing.top, trailing.bottom, 'Discount', discountZoneColor, label.style_label_up)
 
+// @function            detect and mark fractal highs
+// @returns             bool - true if new fractal high detected
+detectFractalHigh() =>
+    bool newFractal = false
+    
+    if bar_index >= fractalLookbackInput
+        isFractalHigh = true
+        
+        // Check if current bar's high is higher than lookback bars
+        for i = 1 to fractalLookbackInput
+            if high[i] >= high[0]
+                isFractalHigh := false
+                break
+        
+        // Check if next bar failed to break the high (confirmation)
+        if isFractalHigh and bar_index > fractalLookbackInput
+            wasHighBroken = false
+            for i = 1 to fractalLookbackInput
+                if high[i] > high[fractalLookbackInput]
+                    wasHighBroken := true
+                    break
+            
+            if not wasHighBroken
+                newFractal := true
+                fractalPoint fh = fractalPoint.new(high[fractalLookbackInput], time[fractalLookbackInput], bar_index - fractalLookbackInput, false, true)
+                fractalHighs.unshift(fh)
+                
+                // Limit array size
+                if fractalHighs.size() > 50
+                    fractalHighs.pop()
+    
+    newFractal
+
+// @function            detect and mark fractal lows
+// @returns             bool - true if new fractal low detected
+detectFractalLow() =>
+    bool newFractal = false
+    
+    if bar_index >= fractalLookbackInput
+        isFractalLow = true
+        
+        // Check if current bar's low is lower than lookback bars
+        for i = 1 to fractalLookbackInput
+            if low[i] <= low[0]
+                isFractalLow := false
+                break
+        
+        // Check if next bar failed to break the low (confirmation)
+        if isFractalLow and bar_index > fractalLookbackInput
+            wasLowBroken = false
+            for i = 1 to fractalLookbackInput
+                if low[i] < low[fractalLookbackInput]
+                    wasLowBroken := true
+                    break
+            
+            if not wasLowBroken
+                newFractal := true
+                fractalPoint fl = fractalPoint.new(low[fractalLookbackInput], time[fractalLookbackInput], bar_index - fractalLookbackInput, true, true)
+                fractalLows.unshift(fl)
+                
+                // Limit array size
+                if fractalLows.size() > 50
+                    fractalLows.pop()
+    
+    newFractal
+
+// @function            determine fractal structure (bullish/bearish)
+// @returns             int - updated structure bias
+updateFractalStructure() =>
+    int newBias = fractalStructureBias
+    
+    if fractalHighs.size() > 0 and fractalLows.size() > 0
+        lastFractalHigh = fractalHighs.get(0)
+        lastFractalLow = fractalLows.get(0)
+        
+        // Check if price broke recent fractal high (bullish)
+        if high > lastFractalHigh.price
+            newBias := BULLISH
+        
+        // Check if price broke recent fractal low (bearish)
+        if low < lastFractalLow.price
+            newBias := BEARISH
+    
+    newBias
+
+// @function            draw fractal structure lines and labels
+// @returns             void
+drawFractalStructure() =>
+    if showFractalsInput
+        // Plot fractal highs
+        if showBearishFractalsInput and fractalHighs.size() > 0
+            for i = 0 to math.min(fractalHighs.size() - 1, 9)
+                fh = fractalHighs.get(i)
+                if fh.confirmed
+                    plotshape(bar_index == fh.barIndex + fractalLookbackInput, 
+                              location = location.abovebar, 
+                              style = shape.triangledown, 
+                              color = fractalBearishColorInput, 
+                              size = size.small,
+                              offset = -fractalLookbackInput)
+                    
+                    if showFractalLabelsInput
+                        label.new(chart.point.new(fh.barTime, na, fh.price), 
+                                  'FH', 
+                                  xloc = xloc.bar_time, 
+                                  color = color(na), 
+                                  textcolor = fractalBearishColorInput, 
+                                  style = label.style_label_down, 
+                                  size = size.tiny)
+        
+        // Plot fractal lows
+        if showBullishFractalsInput and fractalLows.size() > 0
+            for i = 0 to math.min(fractalLows.size() - 1, 9)
+                fl = fractalLows.get(i)
+                if fl.confirmed
+                    plotshape(bar_index == fl.barIndex + fractalLookbackInput, 
+                              location = location.belowbar, 
+                              style = shape.triangleup, 
+                              color = fractalBullishColorInput, 
+                              size = size.small,
+                              offset = -fractalLookbackInput)
+                    
+                    if showFractalLabelsInput
+                        label.new(chart.point.new(fl.barTime, na, fl.price), 
+                                  'FL', 
+                                  xloc = xloc.bar_time, 
+                                  color = color(na), 
+                                  textcolor = fractalBullishColorInput, 
+                                  style = label.style_label_up, 
+                                  size = size.tiny)
+        
+        // Draw structure lines between fractals
+        if fractalHighs.size() >= 2 and fractalLows.size() >= 2
+            lastHigh = fractalHighs.get(0)
+            lastLow = fractalLows.get(0)
+            
+            // Determine which came first and draw line
+            if lastHigh.barIndex > lastLow.barIndex
+                // Last fractal was a high, connect to previous low
+                if fractalLows.size() > 1
+                    prevLow = fractalLows.get(1)
+                    structureColor = lastHigh.price > fractalHighs.get(1).price ? fractalBullishColorInput : fractalBearishColorInput
+                    line.new(chart.point.new(prevLow.barTime, na, prevLow.price), 
+                             chart.point.new(lastHigh.barTime, na, lastHigh.price), 
+                             xloc = xloc.bar_time, 
+                             color = structureColor, 
+                             width = fractalLineWidthInput)
+            else
+                // Last fractal was a low, connect to previous high
+                if fractalHighs.size() > 1
+                    prevHigh = fractalHighs.get(1)
+                    structureColor = lastLow.price < fractalLows.get(1).price ? fractalBearishColorInput : fractalBullishColorInput
+                    line.new(chart.point.new(prevHigh.barTime, na, prevHigh.price), 
+                             chart.point.new(lastLow.barTime, na, lastLow.price), 
+                             xloc = xloc.bar_time, 
+                             color = structureColor, 
+                             width = fractalLineWidthInput)
+
 //---------------------------------------------------------------------------------------------------------------------}
 //MUTABLE VARIABLES & EXECUTION
 //---------------------------------------------------------------------------------------------------------------------{
+// THREE MOVING AVERAGES - Calculate at global scope
+ema1 = ta.ema(priceInput, ema1Input)
+ema2 = ta.ema(priceInput, ema2Input)
+ema3 = ta.ema(priceInput, ema3Input)
+
+// Plot EMAs conditionally
+plot(showMovingAveragesInput ? ema1 : na, title='EMA 1', color=ema1ColorInput, linewidth=2)
+plot(showMovingAveragesInput ? ema2 : na, title='EMA 2', color=ema2ColorInput, linewidth=2)
+plot(showMovingAveragesInput ? ema3 : na, title='EMA 3', color=ema3ColorInput, linewidth=2)
+
+// Candle coloring
 parsedOpen  = showTrendInput ? open : na
 candleColor = internalTrend.bias == BULLISH ? swingBullishColor : swingBearishColor
 plotcandle(parsedOpen,high,low,close,color = candleColor, wickcolor = candleColor, bordercolor = candleColor)
@@ -774,6 +983,20 @@ if showHighLowSwingsInput or showPremiumDiscountZonesInput
 
 if showFairValueGapsInput
     deleteFairValueGaps()
+
+// Fractal Structure Tracker
+if showFractalsInput
+    newFractalHigh = detectFractalHigh()
+    newFractalLow = detectFractalLow()
+    
+    prevFractalStructureBias := fractalStructureBias
+    fractalStructureBias := updateFractalStructure()
+    
+    drawFractalStructure()
+
+// Background highlight for structure change
+structureChanged = prevFractalStructureBias != fractalStructureBias and fractalStructureBias != 0
+bgcolor(highlightStructureChangeInput and structureChanged ? color.new(fractalStructureBias == BULLISH ? fractalBullishColorInput : fractalBearishColorInput, 90) : na, title = 'Structure Change Highlight')
 
 getCurrentStructure(swingsLengthInput,false)
 getCurrentStructure(5,false,true)
@@ -840,17 +1063,5 @@ alertcondition(currentAlerts.equalLows,                 'Equal Lows',           
 
 alertcondition(currentAlerts.bullishFairValueGap,       'Bullish FVG',                  'Bullish FVG formed')
 alertcondition(currentAlerts.bearishFairValueGap,       'Bearish FVG',                  'Bearish FVG formed')
-
-// === ENTRY CONDITIONS ===
-// Strategy entries
-//if currentAlerts.internalBullishBOS
-    //strategy.entry("Buy BOS", strategy.long)
-
-//if currentAlerts.internalBearishBOS
-    //strategy.entry("Sell BOS", strategy.short)
-
-// === EXIT LOGIC ===
-//strategy.exit("TP/SL Long", from_entry="Buy BOS", profit=200, loss=50)
-//strategy.exit("TP/SL Short", from_entry="Sell BOS", profit=200, loss=50)
 
 //---------------------------------------------------------------------------------------------------------------------}
