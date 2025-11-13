@@ -49,6 +49,7 @@ GAPS_GROUP                      = 'Fair Value Gaps'
 LEVELS_GROUP                    = 'Highs & Lows MTF'
 ZONES_GROUP                     = 'Premium & Discount Zones'
 MOVING_AVERAGES_GROUP           = 'Moving Averages'
+FRACTAL_GROUP                   = 'Fractals'
 
 modeTooltip                     = 'Allows to display historical Structure or only the recent ones'
 styleTooltip                    = 'Indicator color theme'
