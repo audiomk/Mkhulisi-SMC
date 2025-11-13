@@ -886,48 +886,6 @@ updateFractalStructure() =>
 // @returns             void
 drawFractalStructure() =>
     if showFractalsInput
-        // Plot fractal highs
-        if showBearishFractalsInput and fractalHighs.size() > 0
-            for i = 0 to math.min(fractalHighs.size() - 1, 9)
-                fh = fractalHighs.get(i)
-                if fh.confirmed
-                    plotshape(bar_index == fh.barIndex + fractalLookbackInput, 
-                              location = location.abovebar, 
-                              style = shape.triangledown, 
-                              color = fractalBearishColorInput, 
-                              size = size.small,
-                              offset = -fractalLookbackInput)
-                    
-                    if showFractalLabelsInput
-                        label.new(chart.point.new(fh.barTime, na, fh.price), 
-                                  'FH', 
-                                  xloc = xloc.bar_time, 
-                                  color = color(na), 
-                                  textcolor = fractalBearishColorInput, 
-                                  style = label.style_label_down, 
-                                  size = size.tiny)
-        
-        // Plot fractal lows
-        if showBullishFractalsInput and fractalLows.size() > 0
-            for i = 0 to math.min(fractalLows.size() - 1, 9)
-                fl = fractalLows.get(i)
-                if fl.confirmed
-                    plotshape(bar_index == fl.barIndex + fractalLookbackInput, 
-                              location = location.belowbar, 
-                              style = shape.triangleup, 
-                              color = fractalBullishColorInput, 
-                              size = size.small,
-                              offset = -fractalLookbackInput)
-                    
-                    if showFractalLabelsInput
-                        label.new(chart.point.new(fl.barTime, na, fl.price), 
-                                  'FL', 
-                                  xloc = xloc.bar_time, 
-                                  color = color(na), 
-                                  textcolor = fractalBullishColorInput, 
-                                  style = label.style_label_up, 
-                                  size = size.tiny)
-        
         // Draw structure lines between fractals
         if fractalHighs.size() >= 2 and fractalLows.size() >= 2
             lastHigh = fractalHighs.get(0)
@@ -994,6 +952,31 @@ if showFractalsInput
     fractalStructureBias := updateFractalStructure()
     
     drawFractalStructure()
+
+    // Plot fractal shapes and labels
+    plotshape(showBearishFractalsInput and newFractalHigh,
+              title='Fractal High', location=location.abovebar, style=shape.triangledown,
+              color=fractalBearishColorInput, size=size.small,
+              offset=-fractalLookbackInput)
+
+    if showBearishFractalsInput and newFractalHigh and showFractalLabelsInput
+        fh = fractalHighs.get(0)
+        label.new(chart.point.new(fh.barTime, na, fh.price),
+                  'FH', xloc = xloc.bar_time, color = color(na),
+                  textcolor = fractalBearishColorInput,
+                  style = label.style_label_down, size = size.tiny)
+
+    plotshape(showBullishFractalsInput and newFractalLow,
+              title='Fractal Low', location=location.belowbar, style=shape.triangleup,
+              color=fractalBullishColorInput, size=size.small,
+              offset=-fractalLookbackInput)
+
+    if showBullishFractalsInput and newFractalLow and showFractalLabelsInput
+        fl = fractalLows.get(0)
+        label.new(chart.point.new(fl.barTime, na, fl.price),
+                  'FL', xloc = xloc.bar_time, color = color(na),
+                  textcolor = fractalBullishColorInput,
+                  style = label.style_label_up, size = size.tiny)
 
 // Background highlight for structure change
 structureChanged = prevFractalStructureBias != fractalStructureBias and fractalStructureBias != 0
