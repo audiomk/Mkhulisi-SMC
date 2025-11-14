@@ -49,6 +49,8 @@ GAPS_GROUP                      = 'Fair Value Gaps'
 LEVELS_GROUP                    = 'Highs & Lows MTF'
 ZONES_GROUP                     = 'Premium & Discount Zones'
 MOVING_AVERAGES_GROUP           = 'Moving Averages'
+FRACTAL_GROUP                   = 'Fractal Structure'
+TABLE_GROUP                     = 'Information Table'
 
 modeTooltip                     = 'Allows to display historical Structure or only the recent ones'
 styleTooltip                    = 'Indicator color theme'
@@ -896,13 +898,6 @@ drawFractalStructure() =>
             for i = 0 to math.min(fractalHighs.size() - 1, 9)
                 fh = fractalHighs.get(i)
                 if fh.confirmed
-                    plotshape(bar_index == fh.barIndex + fractalLookbackInput, 
-                              location = location.abovebar, 
-                              style = shape.triangledown, 
-                              color = fractalBearishColorInput, 
-                              size = size.small,
-                              offset = -fractalLookbackInput)
-                    
                     if showFractalLabelsInput
                         label.new(chart.point.new(fh.barTime, na, fh.price), 
                                   'FH', 
@@ -917,13 +912,6 @@ drawFractalStructure() =>
             for i = 0 to math.min(fractalLows.size() - 1, 9)
                 fl = fractalLows.get(i)
                 if fl.confirmed
-                    plotshape(bar_index == fl.barIndex + fractalLookbackInput, 
-                              location = location.belowbar, 
-                              style = shape.triangleup, 
-                              color = fractalBullishColorInput, 
-                              size = size.small,
-                              offset = -fractalLookbackInput)
-                    
                     if showFractalLabelsInput
                         label.new(chart.point.new(fl.barTime, na, fl.price), 
                                   'FL', 
@@ -948,6 +936,16 @@ drawFractalStructure() =>
                              chart.point.new(lastHigh.barTime, na, lastHigh.price), 
                              xloc = xloc.bar_time, 
                              color = structureColor, 
+                             width = fractalLineWidthInput)
+            else
+                // Last fractal was a low, connect to previous high
+                if fractalHighs.size() > 1
+                    prevHigh = fractalHighs.get(1)
+                    structureColor = lastLow.price < fractalLows.get(1).price ? fractalBearishColorInput : fractalBullishColorInput
+                    line.new(chart.point.new(prevHigh.barTime, na, prevHigh.price),
+                             chart.point.new(lastLow.barTime, na, lastLow.price),
+                             xloc = xloc.bar_time,
+                             color = structureColor,
                              width = fractalLineWidthInput)
 
 // @function            get table position from string
@@ -1008,16 +1006,6 @@ drawInformationTable() =>
             table.cell(infoTable, 4, 1, '', text_color = tableTextColorInput, bgcolor = tableBgColorInput, text_size = getTableSize(tableSizeInput))
             table.cell(infoTable, 5, 1, '', text_color = tableTextColorInput, bgcolor = tableBgColorInput, text_size = getTableSize(tableSizeInput))
             table.cell(infoTable, 6, 1, '', text_color = tableTextColorInput, bgcolor = tableBgColorInput, text_size = getTableSize(tableSizeInput))
-            else
-                // Last fractal was a low, connect to previous high
-                if fractalHighs.size() > 1
-                    prevHigh = fractalHighs.get(1)
-                    structureColor = lastLow.price < fractalLows.get(1).price ? fractalBearishColorInput : fractalBullishColorInput
-                    line.new(chart.point.new(prevHigh.barTime, na, prevHigh.price), 
-                             chart.point.new(lastLow.barTime, na, lastLow.price), 
-                             xloc = xloc.bar_time, 
-                             color = structureColor, 
-                             width = fractalLineWidthInput)
 
 //---------------------------------------------------------------------------------------------------------------------}
 //MUTABLE VARIABLES & EXECUTION
@@ -1058,6 +1046,9 @@ if showFractalsInput
     fractalStructureBias := updateFractalStructure()
     
     drawFractalStructure()
+
+    plotshape(series=newFractalHigh and showBearishFractalsInput, title='Fractal High', style=shape.triangledown, location=location.abovebar, color=fractalBearishColorInput, offset=-fractalLookbackInput, size=size.small)
+    plotshape(series=newFractalLow and showBullishFractalsInput, title='Fractal Low', style=shape.triangleup, location=location.belowbar, color=fractalBullishColorInput, offset=-fractalLookbackInput, size=size.small)
 
 // Background highlight for structure change
 structureChanged = prevFractalStructureBias != fractalStructureBias and fractalStructureBias != 0
