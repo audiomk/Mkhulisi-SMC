@@ -150,6 +150,12 @@ fractalLineWidthInput           = input.int(    1,          'Structure Line Widt
 showFractalLabelsInput          = input(        true,       'Show Fractal Labels',      group = FRACTAL_GROUP)
 highlightStructureChangeInput   = input(        false,      'Highlight Structure Change',group = FRACTAL_GROUP, tooltip = 'Add background color when structure changes')
 
+showTableInput                  = input(        true,       'Show Information Table',   group = TABLE_GROUP)
+tablePositionInput              = input.string( 'Bottom Right', 'Table Position',       group = TABLE_GROUP, options = ['Top Left', 'Top Center', 'Top Right', 'Middle Left', 'Middle Center', 'Middle Right', 'Bottom Left', 'Bottom Center', 'Bottom Right'])
+tableSizeInput                  = input.string( 'Normal',   'Table Size',               group = TABLE_GROUP, options = ['Auto', 'Tiny', 'Small', 'Normal', 'Large', 'Huge'])
+tableTextColorInput             = input.color(  color.white, 'Table Text Color',        group = TABLE_GROUP)
+tableBgColorInput               = input.color(  color.new(#1a1a1a, 0), 'Table Background', group = TABLE_GROUP)
+
 //---------------------------------------------------------------------------------------------------------------------}
 //DATA STRUCTURES & VARIABLES
 //---------------------------------------------------------------------------------------------------------------------{
@@ -943,6 +949,65 @@ drawFractalStructure() =>
                              xloc = xloc.bar_time, 
                              color = structureColor, 
                              width = fractalLineWidthInput)
+
+// @function            get table position from string
+// @param position      position string
+// @returns             string constant for table position
+getTablePosition(string position) =>
+    switch position
+        'Top Left' => position.top_left
+        'Top Center' => position.top_center
+        'Top Right' => position.top_right
+        'Middle Left' => position.middle_left
+        'Middle Center' => position.middle_center
+        'Middle Right' => position.middle_right
+        'Bottom Left' => position.bottom_left
+        'Bottom Center' => position.bottom_center
+        'Bottom Right' => position.bottom_right
+        => position.bottom_right
+
+// @function            get table size from string
+// @param tableSize     size string
+// @returns             string constant for table size
+getTableSize(string tableSize) =>
+    switch tableSize
+        'Auto' => size.auto
+        'Tiny' => size.tiny
+        'Small' => size.small
+        'Normal' => size.normal
+        'Large' => size.large
+        'Huge' => size.huge
+        => size.normal
+
+// @function            create and populate information table
+// @returns             void
+drawInformationTable() =>
+    if showTableInput
+        var table infoTable = table.new(getTablePosition(tablePositionInput), 7, 2, 
+                                        bgcolor = tableBgColorInput, 
+                                        frame_color = color.gray, 
+                                        frame_width = 1, 
+                                        border_color = color.gray, 
+                                        border_width = 1)
+        
+        // Header row
+        if barstate.isfirst
+            table.cell(infoTable, 0, 0, 'Moving Averages', text_color = tableTextColorInput, bgcolor = tableBgColorInput, text_size = getTableSize(tableSizeInput))
+            table.cell(infoTable, 1, 0, 'Structure', text_color = tableTextColorInput, bgcolor = tableBgColorInput, text_size = getTableSize(tableSizeInput))
+            table.cell(infoTable, 2, 0, 'News', text_color = tableTextColorInput, bgcolor = tableBgColorInput, text_size = getTableSize(tableSizeInput))
+            table.cell(infoTable, 3, 0, 'Entry', text_color = tableTextColorInput, bgcolor = tableBgColorInput, text_size = getTableSize(tableSizeInput))
+            table.cell(infoTable, 4, 0, 'SL', text_color = tableTextColorInput, bgcolor = tableBgColorInput, text_size = getTableSize(tableSizeInput))
+            table.cell(infoTable, 5, 0, 'TP', text_color = tableTextColorInput, bgcolor = tableBgColorInput, text_size = getTableSize(tableSizeInput))
+            table.cell(infoTable, 6, 0, 'R:R', text_color = tableTextColorInput, bgcolor = tableBgColorInput, text_size = getTableSize(tableSizeInput))
+            
+            // Data row (blank for now)
+            table.cell(infoTable, 0, 1, '', text_color = tableTextColorInput, bgcolor = tableBgColorInput, text_size = getTableSize(tableSizeInput))
+            table.cell(infoTable, 1, 1, '', text_color = tableTextColorInput, bgcolor = tableBgColorInput, text_size = getTableSize(tableSizeInput))
+            table.cell(infoTable, 2, 1, '', text_color = tableTextColorInput, bgcolor = tableBgColorInput, text_size = getTableSize(tableSizeInput))
+            table.cell(infoTable, 3, 1, '', text_color = tableTextColorInput, bgcolor = tableBgColorInput, text_size = getTableSize(tableSizeInput))
+            table.cell(infoTable, 4, 1, '', text_color = tableTextColorInput, bgcolor = tableBgColorInput, text_size = getTableSize(tableSizeInput))
+            table.cell(infoTable, 5, 1, '', text_color = tableTextColorInput, bgcolor = tableBgColorInput, text_size = getTableSize(tableSizeInput))
+            table.cell(infoTable, 6, 1, '', text_color = tableTextColorInput, bgcolor = tableBgColorInput, text_size = getTableSize(tableSizeInput))
             else
                 // Last fractal was a low, connect to previous high
                 if fractalHighs.size() > 1
@@ -997,6 +1062,9 @@ if showFractalsInput
 // Background highlight for structure change
 structureChanged = prevFractalStructureBias != fractalStructureBias and fractalStructureBias != 0
 bgcolor(highlightStructureChangeInput and structureChanged ? color.new(fractalStructureBias == BULLISH ? fractalBullishColorInput : fractalBearishColorInput, 90) : na, title = 'Structure Change Highlight')
+
+// Draw Information Table
+drawInformationTable()
 
 getCurrentStructure(swingsLengthInput,false)
 getCurrentStructure(5,false,true)
