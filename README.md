@@ -49,6 +49,7 @@ GAPS_GROUP                      = 'Fair Value Gaps'
 LEVELS_GROUP                    = 'Highs & Lows MTF'
 ZONES_GROUP                     = 'Premium & Discount Zones'
 MOVING_AVERAGES_GROUP           = 'Moving Averages'
+FRACTAL_GROUP                   = 'Fractals'
 
 modeTooltip                     = 'Allows to display historical Structure or only the recent ones'
 styleTooltip                    = 'Indicator color theme'
@@ -122,32 +123,32 @@ dailyLevelsColorInput           = input(        BLUE,       '',         group = 
 showWeeklyLevelsInput           = input(        false,      'Weekly',   group = LEVELS_GROUP,   inline = 'weekly')
 weeklyLevelsStyleInput          = input.string( SOLID,      '',         group = LEVELS_GROUP,   inline = 'weekly',  options = [SOLID,DASHED,DOTTED])
 weeklyLevelsColorInput          = input(        BLUE,       '',         group = LEVELS_GROUP,   inline = 'weekly')
-showMonthlyLevelsInput          = input(        false,      'Monthly',   group = LEVELS_GROUP,   inline = 'monthly')
+showMonthlyLevelsInput          = input(        false,      'Monthly',  group = LEVELS_GROUP,  inline = 'monthly')
 monthlyLevelsStyleInput         = input.string( SOLID,      '',         group = LEVELS_GROUP,   inline = 'monthly', options = [SOLID,DASHED,DOTTED])
 monthlyLevelsColorInput         = input(        BLUE,       '',         group = LEVELS_GROUP,   inline = 'monthly')
 
-showPremiumDiscountZonesInput   = input(        false,      'Premium/Discount Zones',   group = ZONES_GROUP , tooltip = showPremiumDiscountZonesTooltip)
-premiumZoneColorInput           = input.color(  RED,        'Premium Zone',             group = ZONES_GROUP)
-equilibriumZoneColorInput       = input.color(  GRAY,       'Equilibrium Zone',         group = ZONES_GROUP)
-discountZoneColorInput          = input.color(  GREEN,      'Discount Zone',            group = ZONES_GROUP)
+showPremiumDiscountZonesInput   = input(        false,      'Premium/Discount Zones',    group = ZONES_GROUP , tooltip = showPremiumDiscountZonesTooltip)
+premiumZoneColorInput           = input.color(  RED,        'Premium Zone',              group = ZONES_GROUP)
+equilibriumZoneColorInput       = input.color(  GRAY,       'Equilibrium Zone',          group = ZONES_GROUP)
+discountZoneColorInput          = input.color(  GREEN,      'Discount Zone',             group = ZONES_GROUP)
 
-showMovingAveragesInput         = input(        true,       'Show Moving Averages',     group = MOVING_AVERAGES_GROUP)
-priceInput                      = input.source( close,      'Base Price',               group = MOVING_AVERAGES_GROUP)
-ema1Input                       = input.int(    50,         'EMA 1 Period',             group = MOVING_AVERAGES_GROUP, minval = 1)
-ema1ColorInput                  = input.color(  GREEN,      'EMA 1 Color',              group = MOVING_AVERAGES_GROUP)
-ema2Input                       = input.int(    100,        'EMA 2 Period',             group = MOVING_AVERAGES_GROUP, minval = 1)
-ema2ColorInput                  = input.color(  color.orange, 'EMA 2 Color',            group = MOVING_AVERAGES_GROUP)
-ema3Input                       = input.int(    200,        'EMA 3 Period',             group = MOVING_AVERAGES_GROUP, minval = 1)
-ema3ColorInput                  = input.color(  RED,        'EMA 3 Color',              group = MOVING_AVERAGES_GROUP)
+showMovingAveragesInput         = input(        true,       'Show Moving Averages',      group = MOVING_AVERAGES_GROUP)
+priceInput                      = input.source( close,      'Base Price',                group = MOVING_AVERAGES_GROUP)
+ema1Input                       = input.int(    50,         'EMA 1 Period',              group = MOVING_AVERAGES_GROUP, minval = 1)
+ema1ColorInput                  = input.color(  GREEN,      'EMA 1 Color',               group = MOVING_AVERAGES_GROUP)
+ema2Input                       = input.int(    100,        'EMA 2 Period',              group = MOVING_AVERAGES_GROUP, minval = 1)
+ema2ColorInput                  = input.color(  color.orange, 'EMA 2 Color',           group = MOVING_AVERAGES_GROUP)
+ema3Input                       = input.int(    200,        'EMA 3 Period',              group = MOVING_AVERAGES_GROUP, minval = 1)
+ema3ColorInput                  = input.color(  RED,        'EMA 3 Color',               group = MOVING_AVERAGES_GROUP)
 
-showFractalsInput               = input(        true,       'Show Fractal Structure',   group = FRACTAL_GROUP)
-showBullishFractalsInput        = input(        true,       'Show Bullish Fractals',    group = FRACTAL_GROUP, inline = 'bull_frac')
-fractalBullishColorInput        = input.color(  GREEN,      '',                         group = FRACTAL_GROUP, inline = 'bull_frac')
-showBearishFractalsInput        = input(        true,       'Show Bearish Fractals',    group = FRACTAL_GROUP, inline = 'bear_frac')
-fractalBearishColorInput        = input.color(  RED,        '',                         group = FRACTAL_GROUP, inline = 'bear_frac')
-fractalLookbackInput            = input.int(    1,          'Confirmation Bars',        group = FRACTAL_GROUP, minval = 1, maxval = 5, tooltip = 'Number of bars required to confirm a fractal')
-fractalLineWidthInput           = input.int(    1,          'Structure Line Width',     group = FRACTAL_GROUP, minval = 1, maxval = 5)
-showFractalLabelsInput          = input(        true,       'Show Fractal Labels',      group = FRACTAL_GROUP)
+showFractalsInput               = input(        true,       'Show Fractal Structure',    group = FRACTAL_GROUP)
+showBullishFractalsInput        = input(        true,       'Show Bullish Fractals',     group = FRACTAL_GROUP, inline = 'bull_frac')
+fractalBullishColorInput        = input.color(  GREEN,      '',                          group = FRACTAL_GROUP, inline = 'bull_frac')
+showBearishFractalsInput        = input(        true,       'Show Bearish Fractals',     group = FRACTAL_GROUP, inline = 'bear_frac')
+fractalBearishColorInput        = input.color(  RED,        '',                          group = FRACTAL_GROUP, inline = 'bear_frac')
+fractalLookbackInput            = input.int(    1,          'Confirmation Bars',         group = FRACTAL_GROUP, minval = 1, maxval = 5, tooltip = 'Number of bars required to confirm a fractal')
+fractalLineWidthInput           = input.int(    1,          'Structure Line Width',      group = FRACTAL_GROUP, minval = 1, maxval = 5)
+showFractalLabelsInput          = input(        true,       'Show Fractal Labels',       group = FRACTAL_GROUP)
 highlightStructureChangeInput   = input(        false,      'Highlight Structure Change',group = FRACTAL_GROUP, tooltip = 'Add background color when structure changes')
 
 //---------------------------------------------------------------------------------------------------------------------}
@@ -885,48 +886,6 @@ updateFractalStructure() =>
 // @returns             void
 drawFractalStructure() =>
     if showFractalsInput
-        // Plot fractal highs
-        if showBearishFractalsInput and fractalHighs.size() > 0
-            for i = 0 to math.min(fractalHighs.size() - 1, 9)
-                fh = fractalHighs.get(i)
-                if fh.confirmed
-                    plotshape(bar_index == fh.barIndex + fractalLookbackInput, 
-                              location = location.abovebar, 
-                              style = shape.triangledown, 
-                              color = fractalBearishColorInput, 
-                              size = size.small,
-                              offset = -fractalLookbackInput)
-                    
-                    if showFractalLabelsInput
-                        label.new(chart.point.new(fh.barTime, na, fh.price), 
-                                  'FH', 
-                                  xloc = xloc.bar_time, 
-                                  color = color(na), 
-                                  textcolor = fractalBearishColorInput, 
-                                  style = label.style_label_down, 
-                                  size = size.tiny)
-        
-        // Plot fractal lows
-        if showBullishFractalsInput and fractalLows.size() > 0
-            for i = 0 to math.min(fractalLows.size() - 1, 9)
-                fl = fractalLows.get(i)
-                if fl.confirmed
-                    plotshape(bar_index == fl.barIndex + fractalLookbackInput, 
-                              location = location.belowbar, 
-                              style = shape.triangleup, 
-                              color = fractalBullishColorInput, 
-                              size = size.small,
-                              offset = -fractalLookbackInput)
-                    
-                    if showFractalLabelsInput
-                        label.new(chart.point.new(fl.barTime, na, fl.price), 
-                                  'FL', 
-                                  xloc = xloc.bar_time, 
-                                  color = color(na), 
-                                  textcolor = fractalBullishColorInput, 
-                                  style = label.style_label_up, 
-                                  size = size.tiny)
-        
         // Draw structure lines between fractals
         if fractalHighs.size() >= 2 and fractalLows.size() >= 2
             lastHigh = fractalHighs.get(0)
@@ -985,14 +944,38 @@ if showFairValueGapsInput
     deleteFairValueGaps()
 
 // Fractal Structure Tracker
-if showFractalsInput
-    newFractalHigh = detectFractalHigh()
-    newFractalLow = detectFractalLow()
-    
-    prevFractalStructureBias := fractalStructureBias
-    fractalStructureBias := updateFractalStructure()
-    
-    drawFractalStructure()
+newFractalHigh = detectFractalHigh()
+newFractalLow = detectFractalLow()
+
+prevFractalStructureBias := fractalStructureBias
+fractalStructureBias := updateFractalStructure()
+
+drawFractalStructure()
+
+// Plot fractal shapes and labels
+plotshape(showFractalsInput and showBearishFractalsInput and newFractalHigh,
+          title='Fractal High', location=location.abovebar, style=shape.triangledown,
+          color=fractalBearishColorInput, size=size.small,
+          offset=-fractalLookbackInput)
+
+if showFractalsInput and showBearishFractalsInput and newFractalHigh and showFractalLabelsInput
+    fh = fractalHighs.get(0)
+    label.new(chart.point.new(fh.barTime, na, fh.price),
+              'FH', xloc = xloc.bar_time, color = color(na),
+              textcolor = fractalBearishColorInput,
+              style = label.style_label_down, size = size.tiny)
+
+plotshape(showFractalsInput and showBullishFractalsInput and newFractalLow,
+          title='Fractal Low', location=location.belowbar, style=shape.triangleup,
+          color=fractalBullishColorInput, size=size.small,
+          offset=-fractalLookbackInput)
+
+if showFractalsInput and showBullishFractalsInput and newFractalLow and showFractalLabelsInput
+    fl = fractalLows.get(0)
+    label.new(chart.point.new(fl.barTime, na, fl.price),
+              'FL', xloc = xloc.bar_time, color = color(na),
+              textcolor = fractalBullishColorInput,
+              style = label.style_label_up, size = size.tiny)
 
 // Background highlight for structure change
 structureChanged = prevFractalStructureBias != fractalStructureBias and fractalStructureBias != 0
