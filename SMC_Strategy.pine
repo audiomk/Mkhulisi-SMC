@@ -3,6 +3,15 @@ strategy('Smart Money Concepts [Mkhulisi]', 'Mk - SMC', overlay = true, max_labe
 //---------------------------------------------------------------------------------------------------------------------}
 //CONSTANTS & STRINGS & INPUTS
 //---------------------------------------------------------------------------------------------------------------------{
+STRATEGY_GROUP                  = 'Strategy'
+showStrategyInput               = input(true, 'Show Strategy', group = STRATEGY_GROUP)
+ema23Input                      = input.int(23, 'EMA 1 Period', group = STRATEGY_GROUP, minval = 1)
+ema38Input                      = input.int(38, 'EMA 2 Period', group = STRATEGY_GROUP, minval = 1)
+ema200Input                     = input.int(200, 'EMA 3 Period', group = STRATEGY_GROUP, minval = 1)
+accountBalanceInput             = input.float(10000, 'Account Balance', group = STRATEGY_GROUP)
+slPercentageInput               = input.float(0.5, 'SL Percentage', group = STRATEGY_GROUP)
+tpMultiplierInput               = input.float(3.0, 'TP Multiplier', group = STRATEGY_GROUP)
+
 BULLISH_LEG                     = 1
 BEARISH_LEG                     = 0
 
@@ -48,7 +57,6 @@ EQUAL_GROUP                     = 'EQH/EQL'
 GAPS_GROUP                      = 'Fair Value Gaps'
 LEVELS_GROUP                    = 'Highs & Lows MTF'
 ZONES_GROUP                     = 'Premium & Discount Zones'
-MOVING_AVERAGES_GROUP           = 'Moving Averages'
 FRACTAL_GROUP                   = 'Fractals'
 
 modeTooltip                     = 'Allows to display historical Structure or only the recent ones'
@@ -131,15 +139,6 @@ showPremiumDiscountZonesInput   = input(        false,      'Premium/Discount Zo
 premiumZoneColorInput           = input.color(  RED,        'Premium Zone',              group = ZONES_GROUP)
 equilibriumZoneColorInput       = input.color(  GRAY,       'Equilibrium Zone',          group = ZONES_GROUP)
 discountZoneColorInput          = input.color(  GREEN,      'Discount Zone',             group = ZONES_GROUP)
-
-showMovingAveragesInput         = input(        true,       'Show Moving Averages',      group = MOVING_AVERAGES_GROUP)
-priceInput                      = input.source( close,      'Base Price',                group = MOVING_AVERAGES_GROUP)
-ema1Input                       = input.int(    50,         'EMA 1 Period',              group = MOVING_AVERAGES_GROUP, minval = 1)
-ema1ColorInput                  = input.color(  GREEN,      'EMA 1 Color',               group = MOVING_AVERAGES_GROUP)
-ema2Input                       = input.int(    100,        'EMA 2 Period',              group = MOVING_AVERAGES_GROUP, minval = 1)
-ema2ColorInput                  = input.color(  color.orange, 'EMA 2 Color',           group = MOVING_AVERAGES_GROUP)
-ema3Input                       = input.int(    200,        'EMA 3 Period',              group = MOVING_AVERAGES_GROUP, minval = 1)
-ema3ColorInput                  = input.color(  RED,        'EMA 3 Color',               group = MOVING_AVERAGES_GROUP)
 
 showFractalsInput               = input(        true,       'Show Fractal Structure',    group = FRACTAL_GROUP)
 showBullishFractalsInput        = input(        true,       'Show Bullish Fractals',     group = FRACTAL_GROUP, inline = 'bull_frac')
@@ -882,6 +881,24 @@ updateFractalStructure() =>
     
     newBias
 
+// @function            detect Bullish FVG on a given timeframe
+// @returns             [float, float] - FVG top and bottom prices
+detectBullishFVG(string tf) =>
+    [high_2, low_0] = request.security(syminfo.tickerid, tf, [high[2], low[0]], lookahead=barmerge.lookahead_off)
+    is_bullish_fvg = low_0 > high_2
+    fvg_top = is_bullish_fvg ? low_0 : na
+    fvg_bottom = is_bullish_fvg ? high_2 : na
+    [fvg_top, fvg_bottom]
+
+// @function            detect Bearish FVG on a given timeframe
+// @returns             [float, float] - FVG top and bottom prices
+detectBearishFVG(string tf) =>
+    [low_2, high_0] = request.security(syminfo.tickerid, tf, [low[2], high[0]], lookahead=barmerge.lookahead_off)
+    is_bearish_fvg = high_0 < low_2
+    fvg_top = is_bearish_fvg ? low_2 : na
+    fvg_bottom = is_bearish_fvg ? high_0 : na
+    [fvg_top, fvg_bottom]
+
 // @function            draw fractal structure lines and labels
 // @returns             void
 drawFractalStructure() =>
@@ -916,16 +933,6 @@ drawFractalStructure() =>
 //---------------------------------------------------------------------------------------------------------------------}
 //MUTABLE VARIABLES & EXECUTION
 //---------------------------------------------------------------------------------------------------------------------{
-// THREE MOVING AVERAGES - Calculate at global scope
-ema1 = ta.ema(priceInput, ema1Input)
-ema2 = ta.ema(priceInput, ema2Input)
-ema3 = ta.ema(priceInput, ema3Input)
-
-// Plot EMAs conditionally
-plot(showMovingAveragesInput ? ema1 : na, title='EMA 1', color=ema1ColorInput, linewidth=2)
-plot(showMovingAveragesInput ? ema2 : na, title='EMA 2', color=ema2ColorInput, linewidth=2)
-plot(showMovingAveragesInput ? ema3 : na, title='EMA 3', color=ema3ColorInput, linewidth=2)
-
 // Candle coloring
 parsedOpen  = showTrendInput ? open : na
 candleColor = internalTrend.bias == BULLISH ? swingBullishColor : swingBearishColor
@@ -1024,24 +1031,61 @@ if barstate.islastconfirmedhistory or (barstate.isrealtime and newBar)
         drawLevels('M',timeframe.ismonthly,monthlyLevelsStyleInput,monthlyLevelsColorInput)
 
 //---------------------------------------------------------------------------------------------------------------------}
-// TABLE
+//STRATEGY
 //---------------------------------------------------------------------------------------------------------------------{
-var table_ = table.new(position.bottom_right, 6, 2, bgcolor = color.new(color.gray, 80), border_width = 1)
+if showStrategyInput
+    // Get 4H data
+    [ema23_4h, ema38_4h, ema200_4h] = request.security(syminfo.tickerid, "240", [ta.ema(close, ema23Input), ta.ema(close, ema38Input), ta.ema(close, ema200Input)], lookahead = barmerge.lookahead_off)
 
-if barstate.islast
-    table.cell(table_, 0, 0, "Moving Average", text_color = color.white)
-    table.cell(table_, 1, 0, "Structure", text_color = color.white)
-    table.cell(table_, 2, 0, "news", text_color = color.white)
-    table.cell(table_, 3, 0, "Entry", text_color = color.white)
-    table.cell(table_, 4, 0, "SL", text_color = color.white)
-    table.cell(table_, 5, 0, "TP", text_color = color.white)
+    // Get 15min Bullish FVG
+    [bullish_fvg_top_15m, bullish_fvg_bottom_15m] = detectBullishFVG("15")
     
-    table.cell(table_, 0, 1, "", text_color = color.white)
-    table.cell(table_, 1, 1, "", text_color = color.white)
-    table.cell(table_, 2, 1, "", text_color = color.white)
-    table.cell(table_, 3, 1, "", text_color = color.white)
-    table.cell(table_, 4, 1, "", text_color = color.white)
-    table.cell(table_, 5, 1, "", text_color = color.white)
+    // Get 15min Bearish FVG
+    [bearish_fvg_top_15m, bearish_fvg_bottom_15m] = detectBearishFVG("15")
+
+    // Structure conditions
+    isBullishStructure = (internalTrend.bias == BULLISH) or (swingTrend.bias == BULLISH)
+    isBearishStructure = (internalTrend.bias == BEARISH) or (swingTrend.bias == BEARISH)
+
+    // Buy conditions
+    buyCondition1 = close > ema200_4h
+    buyCondition2 = ema23_4h > ema38_4h
+    buyCondition3 = isBullishStructure
+    buyCondition4 = not na(bullish_fvg_top_15m)
+
+    // Sell conditions
+    sellCondition1 = close < ema200_4h
+    sellCondition2 = ema23_4h < ema38_4h
+    sellCondition3 = isBearishStructure
+    sellCondition4 = not na(bearish_fvg_top_15m)
+
+    if buyCondition1 and buyCondition2 and buyCondition3 and buyCondition4
+        buyLimitPrice = bullish_fvg_top_15m
+        fvg_size = bullish_fvg_top_15m - bullish_fvg_bottom_15m
+        stopLoss = bullish_fvg_bottom_15m - (fvg_size * 0.5)
+
+        // Position sizing
+        riskAmount = accountBalanceInput * (slPercentageInput / 100)
+        sl_distance_points = buyLimitPrice - stopLoss
+        positionSize = riskAmount / (sl_distance_points * syminfo.pointvalue)
+
+        takeProfit = buyLimitPrice + (buyLimitPrice - stopLoss) * tpMultiplierInput
+        strategy.entry("Buy", strategy.long, qty=positionSize, limit=buyLimitPrice)
+        strategy.exit("Exit Buy", "Buy", stop=stopLoss, limit=takeProfit)
+
+    if sellCondition1 and sellCondition2 and sellCondition3 and sellCondition4
+        sellLimitPrice = bearish_fvg_bottom_15m
+        fvg_size = bearish_fvg_top_15m - bearish_fvg_bottom_15m
+        stopLoss = bearish_fvg_top_15m + (fvg_size * 0.5)
+
+        // Position sizing
+        riskAmount = accountBalanceInput * (slPercentageInput / 100)
+        sl_distance_points = stopLoss - sellLimitPrice
+        positionSize = riskAmount / (sl_distance_points * syminfo.pointvalue)
+
+        takeProfit = sellLimitPrice - (stopLoss - sellLimitPrice) * tpMultiplierInput
+        strategy.entry("Sell", strategy.short, qty=positionSize, limit=sellLimitPrice)
+        strategy.exit("Exit Sell", "Sell", stop=stopLoss, limit=takeProfit)
 
 //---------------------------------------------------------------------------------------------------------------------}
 //ALERTS
