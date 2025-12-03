@@ -124,6 +124,7 @@ internalFilterConfluenceInput   = input(        false,      'Confluence Filter',
 internalStructureSize           = input.string( TINY,       'Internal Label Size',      group = INTERNAL_GROUP, options = [TINY,SMALL,NORMAL])
 
 showStructureInput              = input(        true,       'Show Swing Structure',     group = SWING_GROUP,    tooltip = showStructureTooltip)
+swingTimeframeInput             = input.timeframe('',       'Structure Timeframe',      group = SWING_GROUP,    tooltip = 'Select a timeframe for swing structure analysis. Leave blank to use the current chart timeframe.')
 showSwingBullInput              = input.string( ALL,        'Bullish Structure',        group = SWING_GROUP,    inline = 'bull',    options = [ALL,BOS,CHOCH])
 swingBullColorInput             = input(        GREEN,      '',                         group = SWING_GROUP,    inline = 'bull')
 showSwingBearInput              = input.string( ALL,        'Bearish Structure',        group = SWING_GROUP,    inline = 'bear',    options = [ALL,BOS,CHOCH])
@@ -493,7 +494,7 @@ getTFMaxFVGs(int tf_idx) =>
 
 findFVGs (int tf_idx, string tf, string tf_label, int tf_num, FVG[] fvgBox) =>
     if (not ltf_hide or (ltf_hide and helper.Validtimeframe(tf)))
-        [htf_high1, htf_low1, htf_high3, htf_low3, htf_time2] = request.security(syminfo.tickerid, tf, [high[1], low[1], high[3], low[3], time[2]], lookahead = barmerge.lookahead_on)
+        [htf_high1, htf_low1, htf_high3, htf_low3, htf_time2] = request.security(syminfo.tickerid, tf, [high[1], low[1], high[3], low[3], time[2]], lookahead = barmerge.lookahead_off)
         isBullishFVG = htf_high3 < htf_low1
         isBearishFVG = htf_low3 > htf_high1
 
@@ -1391,22 +1392,13 @@ highs.push(high)
 lows.push(low)
 times.push(time)
 
+// Refactored security call for MTF performance
+useMTF = swingTimeframeInput != '' and swingTimeframeInput != timeframe.period
+[s_high_mtf, s_low_mtf, s_close_mtf, s_time_mtf] = useMTF ? request.security(syminfo.tickerid, swingTimeframeInput, [high, low, close, time], lookahead=barmerge.lookahead_off) : [high, low, close, time]
+
 //---------------------------------------------------------------------------------------------------------------------}
 //USER-DEFINED FUNCTIONS
 //---------------------------------------------------------------------------------------------------------------------{
-// @function            Get the value of the current leg, it can be 0 (bearish) or 1 (bullish)
-// @returns             int
-leg(int size) =>
-    var leg     = 0    
-    newLegHigh  = high[size] > ta.highest( size)
-    newLegLow   = low[size]  < ta.lowest(  size)
-    
-    if newLegHigh
-        leg := BEARISH_LEG
-    else if newLegLow
-        leg := BULLISH_LEG
-    leg
-
 // @function            Identify whether the current value is the start of a new leg (swing)
 // @param leg           (int) Current leg value
 // @returns             bool
@@ -1429,7 +1421,7 @@ startOfBullishLeg(int leg)  => ta.change(leg) == +1
 // @param labelColor    text color
 // @param labelStyle    label style
 // @returns             label ID
-drawLabel(int labelTime, float labelPrice, string tag, color labelColor, string labelStyle) =>    
+drawLabel(int labelTime, float labelPrice, string tag, color labelColor, string labelStyle) =>
     var label l_abel = na
 
     if modeInput == PRESENT
@@ -1443,9 +1435,9 @@ drawLabel(int labelTime, float labelPrice, string tag, color labelColor, string 
 // @param size          how many bars ago was the current pivot detected
 // @param equalHigh     true for EQH, false for EQL
 // @returns             label ID
-drawEqualHighLow(pivot p_ivot, float level, int size, bool equalHigh) =>
+drawEqualHighLow(pivot p_ivot, float level, int size, bool equalHigh, series int s_time) =>
     equalDisplay e_qualDisplay = equalHigh ? equalHighDisplay : equalLowDisplay
-    
+
     string tag          = 'EQL'
     color equalColor    = swingBullishColor
     string labelStyle   = label.style_label_up
@@ -1458,33 +1450,74 @@ drawEqualHighLow(pivot p_ivot, float level, int size, bool equalHigh) =>
     if modeInput == PRESENT
         line.delete(    e_qualDisplay.l_ine)
         label.delete(   e_qualDisplay.l_abel)
-        
-    e_qualDisplay.l_ine     := line.new(chart.point.new(p_ivot.barTime,na,p_ivot.currentLevel), chart.point.new(time[size],na,level), xloc = xloc.bar_time, color = equalColor, style = line.style_dotted)
+
+    e_qualDisplay.l_ine     := line.new(chart.point.new(p_ivot.barTime,na,p_ivot.currentLevel), chart.point.new(s_time[size],na,p_ivot.currentLevel), xloc = xloc.bar_time, color = equalColor, style = line.style_dotted)
     labelPosition           = math.round(0.5*(p_ivot.barIndex + bar_index - size))
     e_qualDisplay.l_abel    := label.new(chart.point.new(na,labelPosition,level), tag, xloc.bar_index, color = color(na), textcolor = equalColor, style = labelStyle, size = equalHighsLowsSizeInput)
+
+
+getSwingLeg(series bool newLegHigh, series bool newLegLow) =>
+    var int leg = 0
+    if newLegHigh
+        leg := BEARISH_LEG
+    else if newLegLow
+        leg := BULLISH_LEG
+    leg
+
+getInternalLeg(series bool newLegHigh, series bool newLegLow) =>
+    var int leg = 0
+    if newLegHigh
+        leg := BEARISH_LEG
+    else if newLegLow
+        leg := BULLISH_LEG
+    leg
+
+getEqualLeg(series bool newLegHigh, series bool newLegLow) =>
+    var int leg = 0
+    if newLegHigh
+        leg := BEARISH_LEG
+    else if newLegLow
+        leg := BULLISH_LEG
+    leg
 
 // @function            store current structure and trailing swing points, and also display swing points and equal highs/lows
 // @param size          (int) structure size
 // @param equalHighLow  (bool) true for displaying current highs/lows
 // @param internal      (bool) true for getting internal structures
 // @returns             label ID
-getCurrentStructure(int size,bool equalHighLow = false, bool internal = false) =>        
-    currentLeg              = leg(size)
+getCurrentStructure(int size,bool equalHighLow = false, bool internal = false) =>
+    isSwing = not internal and not equalHighLow
+    s_high = isSwing ? s_high_mtf : high
+    s_low  = isSwing ? s_low_mtf  : low
+    s_time = isSwing ? s_time_mtf : time
+
+    newLegHigh  = s_high[size] > ta.highest(s_high, size)
+    newLegLow   = s_low[size]  < ta.lowest(s_low, size)
+
+    currentLeg = 0
+    if internal
+        currentLeg := getInternalLeg(newLegHigh, newLegLow)
+    else if equalHighLow
+        currentLeg := getEqualLeg(newLegHigh, newLegLow)
+    else
+        currentLeg := getSwingLeg(newLegHigh, newLegLow)
+
     newPivot                = startOfNewLeg(currentLeg)
     pivotLow                = startOfBullishLeg(currentLeg)
     pivotHigh               = startOfBearishLeg(currentLeg)
 
     if newPivot
         if pivotLow
-            pivot p_ivot    = equalHighLow ? equalLow : internal ? internalLow : swingLow    
+            pivot p_ivot    = equalHighLow ? equalLow : internal ? internalLow : swingLow
 
-            if equalHighLow and math.abs(p_ivot.currentLevel - low[size]) < equalHighsLowsThresholdInput * atrMeasure                
-                drawEqualHighLow(p_ivot, low[size], size, false)
+            draw_eql = equalHighLow and math.abs(p_ivot.currentLevel - s_low[size]) < equalHighsLowsThresholdInput * atrMeasure
+            if draw_eql
+                drawEqualHighLow(p_ivot, s_low[size], size, false, s_time)
 
             p_ivot.lastLevel    := p_ivot.currentLevel
-            p_ivot.currentLevel := low[size]
+            p_ivot.currentLevel := s_low[size]
             p_ivot.crossed      := false
-            p_ivot.barTime      := time[size]
+            p_ivot.barTime      := s_time[size]
             p_ivot.barIndex     := bar_index[size]
 
             if not equalHighLow and not internal
@@ -1494,17 +1527,18 @@ getCurrentStructure(int size,bool equalHighLow = false, bool internal = false) =
                 trailing.lastBottomTime := p_ivot.barTime
 
             if showSwingsInput and not internal and not equalHighLow
-                drawLabel(time[size], p_ivot.currentLevel, p_ivot.currentLevel < p_ivot.lastLevel ? 'LL' : 'HL', swingBullishColor, label.style_label_up)            
+                drawLabel(s_time[size], p_ivot.currentLevel, p_ivot.currentLevel < p_ivot.lastLevel ? 'LL' : 'HL', swingBullishColor, label.style_label_up)
         else
             pivot p_ivot = equalHighLow ? equalHigh : internal ? internalHigh : swingHigh
 
-            if equalHighLow and math.abs(p_ivot.currentLevel - high[size]) < equalHighsLowsThresholdInput * atrMeasure
-                drawEqualHighLow(p_ivot,high[size],size,true)                
+            draw_eqh = equalHighLow and math.abs(p_ivot.currentLevel - s_high[size]) < equalHighsLowsThresholdInput * atrMeasure
+            if draw_eqh
+                drawEqualHighLow(p_ivot, s_high[size], size, true, s_time)
 
             p_ivot.lastLevel    := p_ivot.currentLevel
-            p_ivot.currentLevel := high[size]
+            p_ivot.currentLevel := s_high[size]
             p_ivot.crossed      := false
-            p_ivot.barTime      := time[size]
+            p_ivot.barTime      := s_time[size]
             p_ivot.barIndex     := bar_index[size]
 
             if not equalHighLow and not internal
@@ -1514,7 +1548,7 @@ getCurrentStructure(int size,bool equalHighLow = false, bool internal = false) =
                 trailing.lastTopTime    := p_ivot.barTime
 
             if showSwingsInput and not internal and not equalHighLow
-                drawLabel(time[size], p_ivot.currentLevel, p_ivot.currentLevel > p_ivot.lastLevel ? 'HH' : 'LH', swingBearishColor, label.style_label_down)
+                drawLabel(s_time[size], p_ivot.currentLevel, p_ivot.currentLevel > p_ivot.lastLevel ? 'HH' : 'LH', swingBearishColor, label.style_label_down)
                 
 // @function                draw line and label representing a structure
 // @param p_ivot            base pivot point
@@ -1612,10 +1646,10 @@ displayStructure(bool internal = false) =>
     var bullishBar = true
     var bearishBar = true
 
-    if internalFilterConfluenceInput
+    if internalFilterConfluenceInput and internal
         bullishBar := high - math.max(close, open) > math.min(close, open - low)
         bearishBar := high - math.max(close, open) < math.min(close, open - low)
-    
+
     pivot p_ivot    = internal ? internalHigh : swingHigh
     trend t_rend    = internal ? internalTrend : swingTrend
 
@@ -1625,7 +1659,9 @@ displayStructure(bool internal = false) =>
     extraCondition  = internal ? internalHigh.currentLevel != swingHigh.currentLevel and bullishBar : true
     bullishColor    = styleInput == MONOCHROME ? MONO_BULLISH : internal ? internalBullColorInput : swingBullColorInput
 
-    if ta.crossover(close,p_ivot.currentLevel) and not p_ivot.crossed and extraCondition
+    s_close = not internal ? s_close_mtf : close
+
+    if ta.crossover(s_close,p_ivot.currentLevel) and not p_ivot.crossed and extraCondition
         string tag = t_rend.bias == BEARISH ? CHOCH : BOS
 
         if internal
@@ -1640,17 +1676,17 @@ displayStructure(bool internal = false) =>
 
         displayCondition = internal ? showInternalsInput and (showInternalBullInput == ALL or (showInternalBullInput == BOS and tag != CHOCH) or (showInternalBullInput == CHOCH and tag == CHOCH)) : showStructureInput and (showSwingBullInput == ALL or (showSwingBullInput == BOS and tag != CHOCH) or (showSwingBullInput == CHOCH and tag == CHOCH))
 
-        if displayCondition                        
+        if displayCondition
             drawStructure(p_ivot,tag,bullishColor,lineStyle,label.style_label_down,labelSize)
 
         if (internal and showInternalOrderBlocksInput) or (not internal and showSwingOrderBlocksInput)
             storeOrdeBlock(p_ivot,internal,BULLISH)
 
-    p_ivot          := internal ? internalLow : swingLow    
+    p_ivot          := internal ? internalLow : swingLow
     extraCondition  := internal ? internalLow.currentLevel != swingLow.currentLevel and bearishBar : true
     bearishColor    = styleInput == MONOCHROME ? MONO_BEARISH : internal ? internalBearColorInput : swingBearColorInput
 
-    if ta.crossunder(close,p_ivot.currentLevel) and not p_ivot.crossed and extraCondition
+    if ta.crossunder(s_close,p_ivot.currentLevel) and not p_ivot.crossed and extraCondition
         string tag = t_rend.bias == BULLISH ? CHOCH : BOS
 
         if internal
@@ -1665,7 +1701,7 @@ displayStructure(bool internal = false) =>
 
         displayCondition = internal ? showInternalsInput and (showInternalBearInput == ALL or (showInternalBearInput == BOS and tag != CHOCH) or (showInternalBearInput == CHOCH and tag == CHOCH)) : showStructureInput and (showSwingBearInput == ALL or (showSwingBearInput == BOS and tag != CHOCH) or (showSwingBearInput == CHOCH and tag == CHOCH))
         
-        if displayCondition                        
+        if displayCondition
             drawStructure(p_ivot,tag,bearishColor,lineStyle,label.style_label_up,labelSize)
 
         if (internal and showInternalOrderBlocksInput) or (not internal and showSwingOrderBlocksInput)
@@ -1692,7 +1728,7 @@ deleteFairValueGaps() =>
 // @function            draw fair value gaps
 // @returns             fairValueGap ID
 drawFairValueGaps() => 
-    [lastClose, lastOpen, lastTime, currentHigh, currentLow, currentTime, last2High, last2Low] = request.security(syminfo.tickerid, fairValueGapsTimeframeInput, [close[1], open[1], time[1], high[0], low[0], time[0], high[2], low[2]],lookahead = barmerge.lookahead_on)
+    [lastClose, lastOpen, lastTime, currentHigh, currentLow, currentTime, last2High, last2Low] = request.security(syminfo.tickerid, fairValueGapsTimeframeInput, [close[1], open[1], time[1], high[0], low[0], time[0], high[2], low[2]],lookahead = barmerge.lookahead_off)
 
     barDeltaPercent     = (lastClose - lastOpen) / (lastOpen * 100)
     newTimeframe        = timeframe.change(fairValueGapsTimeframeInput)
@@ -1724,7 +1760,7 @@ getStyle(string style) =>
 // @param levelColor    line and text color
 // @returns             void
 drawLevels(string timeframe, bool sameTimeframe, string style, color levelColor) =>
-    [topLevel, bottomLevel, leftTime, rightTime] = request.security(syminfo.tickerid, timeframe, [high[1], low[1], time[1], time],lookahead = barmerge.lookahead_on)
+    [topLevel, bottomLevel, leftTime, rightTime] = request.security(syminfo.tickerid, timeframe, [high[1], low[1], time[1], time],lookahead = barmerge.lookahead_off)
 
     float parsedTop         = sameTimeframe ? high : topLevel
     float parsedBottom      = sameTimeframe ? low : bottomLevel    
