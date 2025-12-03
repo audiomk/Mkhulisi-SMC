@@ -1452,9 +1452,29 @@ drawEqualHighLow(pivot p_ivot, float level, int size, bool equalHigh, series int
     e_qualDisplay.l_abel    := label.new(chart.point.new(na,labelPosition,level), tag, xloc.bar_index, color = color(na), textcolor = equalColor, style = labelStyle, size = equalHighsLowsSizeInput)
 
 
-var swingLeg = 0
-var internalLeg = 0
-var equalLeg = 0
+getSwingLeg(series bool newLegHigh, series bool newLegLow) =>
+    var int leg = 0
+    if newLegHigh
+        leg := BEARISH_LEG
+    else if newLegLow
+        leg := BULLISH_LEG
+    leg
+
+getInternalLeg(series bool newLegHigh, series bool newLegLow) =>
+    var int leg = 0
+    if newLegHigh
+        leg := BEARISH_LEG
+    else if newLegLow
+        leg := BULLISH_LEG
+    leg
+
+getEqualLeg(series bool newLegHigh, series bool newLegLow) =>
+    var int leg = 0
+    if newLegHigh
+        leg := BEARISH_LEG
+    else if newLegLow
+        leg := BULLISH_LEG
+    leg
 
 // @function            store current structure and trailing swing points, and also display swing points and equal highs/lows
 // @param size          (int) structure size
@@ -1472,23 +1492,11 @@ getCurrentStructure(int size,bool equalHighLow = false, bool internal = false) =
 
     currentLeg = 0
     if internal
-        if newLegHigh
-            internalLeg := BEARISH_LEG
-        else if newLegLow
-            internalLeg := BULLISH_LEG
-        currentLeg := internalLeg
+        currentLeg := getInternalLeg(newLegHigh, newLegLow)
     else if equalHighLow
-        if newLegHigh
-            equalLeg := BEARISH_LEG
-        else if newLegLow
-            equalLeg := BULLISH_LEG
-        currentLeg := equalLeg
+        currentLeg := getEqualLeg(newLegHigh, newLegLow)
     else
-        if newLegHigh
-            swingLeg := BEARISH_LEG
-        else if newLegLow
-            swingLeg := BULLISH_LEG
-        currentLeg := swingLeg
+        currentLeg := getSwingLeg(newLegHigh, newLegLow)
 
     newPivot                = startOfNewLeg(currentLeg)
     pivotLow                = startOfBullishLeg(currentLeg)
@@ -1498,7 +1506,8 @@ getCurrentStructure(int size,bool equalHighLow = false, bool internal = false) =
         if pivotLow
             pivot p_ivot    = equalHighLow ? equalLow : internal ? internalLow : swingLow
 
-            if equalHighLow and math.abs(p_ivot.currentLevel - s_low[size]) < equalHighsLowsThresholdInput * atrMeasure
+            draw_eql = equalHighLow and math.abs(p_ivot.currentLevel - s_low[size]) < equalHighsLowsThresholdInput * atrMeasure
+            if draw_eql
                 drawEqualHighLow(p_ivot, s_low[size], size, false, s_time)
 
             p_ivot.lastLevel    := p_ivot.currentLevel
@@ -1518,7 +1527,8 @@ getCurrentStructure(int size,bool equalHighLow = false, bool internal = false) =
         else
             pivot p_ivot = equalHighLow ? equalHigh : internal ? internalHigh : swingHigh
 
-            if equalHighLow and math.abs(p_ivot.currentLevel - s_high[size]) < equalHighsLowsThresholdInput * atrMeasure
+            draw_eqh = equalHighLow and math.abs(p_ivot.currentLevel - s_high[size]) < equalHighsLowsThresholdInput * atrMeasure
+            if draw_eqh
                 drawEqualHighLow(p_ivot, s_high[size], size, true, s_time)
 
             p_ivot.lastLevel    := p_ivot.currentLevel
